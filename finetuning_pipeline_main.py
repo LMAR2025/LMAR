@@ -603,7 +603,5 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 if __name__ == '__main__':
     args = parse_arguments()
     run_pipeline(dataset_name = args.dataset_name, testing_mode = args.testing_mode, model_name=args.model_name, exp_name=args.exp_name, llm_type=args.llm_type)
-    # model_name = "sentence-transformers/distilbert-base-nli-stsb-mean-tokens"
-    # run_pipeline(dataset_name = "pubmedQA", testing_mode = False, model_name=model_name, exp_name="with_cluster", llm_type="Llama")
 
     print("Finished!")

@@ -9,9 +9,9 @@ vectorstore_path = root_path.joinpath("./VectorStore")
 model_output_path = root_path.joinpath('embedding-models/')
 fig_path = root_path.joinpath('figure/')
 
-access_token = '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'
-openai_key = 'sk-T1gL9NG4HRJzByheXOe29sPEZ2_nQDz6qvCemOGIe-T3BlbkFJ3d8qAIdfZG1qwEZfefAjPgOMfqpNSv-SqyWIPbOQAA'
-deepseek_api_key = 'sk-ccd81d1be2304543816cad4c77c62251'
+access_token = 'replace-with-your-key'
+openai_key = 'replace-with-your-key'
+deepseek_api_key = 'replace-with-your-key'
 
 class MyDataParallel(nn.DataParallel):
     def forward(self, *inputs, **kwargs):

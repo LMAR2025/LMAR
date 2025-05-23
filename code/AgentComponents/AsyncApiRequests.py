@@ -24,7 +24,6 @@ from lmformatenforcer.integrations.transformers import build_transformers_prefix
 
 
 def get_deep_size(obj, seen=None):
-    """递归计算 obj 所占内存（单位：字节）"""
     size = sys.getsizeof(obj)
     if seen is None:
         seen = set()
@@ -114,8 +113,7 @@ class OpenAIGPTClient(LLMClient):
 
 
         elapsed_time = time.time() - start_time
-        # print(f"OpenAI API 请求耗时: {elapsed_time:.2f} 秒")
-
+        
         tokens = {
             "total_token": response.usage.total_tokens,
             "input_token": response.usage.prompt_tokens,
@@ -172,10 +170,10 @@ class DeepSeekClient(LLMClient):
 
                 content = response.choices[0].message.content.strip()
                 if content.startswith("```"):
-                    content = content.strip("`")  # 去掉所有反引号
+                    content = content.strip("`")  
                     content_lines = content.split("\n")
                     if content_lines[0].strip().startswith("json"):
-                        content = "\n".join(content_lines[1:])  # 去掉第一行的```json
+                        content = "\n".join(content_lines[1:])  
                     else:
                         content = "\n".join(content_lines)
 
@@ -204,7 +202,6 @@ class DeepSeekClient(LLMClient):
 
 
         elapsed_time = time.time() - start_time
-        # print(f"OpenAI API 请求耗时: {elapsed_time:.2f} 秒")
 
         tokens = {
             "total_token": total_token,
@@ -358,14 +355,6 @@ class LLamaHFClient(LLMClient):
     def _build_prompt(self, system_prompt: str, user_prompt: str) -> str:
         return f"<s>[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n{user_prompt} [/INST]"
 
-    # def _build_prompt(self, system_prompt: str, user_prompt: str) -> str:
-    #     system_prompt = system_prompt.strip()
-    #     user_prompt = user_prompt.strip()
-    #
-    #     return (
-    #         f"{system_prompt}\n\n{user_prompt}"
-    #     )
-
 
 class LLMQueue:
     def __init__(self, llm_client: LLMClient, batch_size=4, wait_time=0.5, num_workers=2, progress_bar=False):
@@ -374,10 +363,10 @@ class LLMQueue:
         self.wait_time = wait_time
         self.queue = asyncio.Queue()
         self.task_results = {}
-        self.stop_event = asyncio.Event()  # 用于标记是否停止 worker
+        self.stop_event = asyncio.Event() 
         self.num_workers = num_workers
-        self.total_tasks = 0  # 记录提交的任务总数
-        self.completed_tasks = 0  # 记录完成的任务数
+        self.total_tasks = 0  
+        self.completed_tasks = 0  
 
         self.total_token = 0
         self.input_token = 0
@@ -407,7 +396,6 @@ class LLMQueue:
                 break
 
     async def worker(self):
-        """后台 worker，处理任务队列"""
 
         while not self.stop_event.is_set():
             batch_sys_prompts, batch_user_prompts, tasks = [], [], []
@@ -435,7 +423,7 @@ class LLMQueue:
                         self.queue.task_done()
 
             except asyncio.TimeoutError:
-                pass  # 超时后立即处理当前 batch
+                pass  
 
             if batch_sys_prompts and batch_user_prompts:
                 await self.wait_if_oom_risk()
@@ -451,27 +439,25 @@ class LLMQueue:
                     self.input_token += token_data["input_token"]
                     self.output_token += token_data["output_token"]
 
-                    self.completed_tasks += 1  # 任务完成计数
+                    self.completed_tasks += 1  
 
                     if self.progress_bar:
                         await asyncio.to_thread(self.progress_bar.update, 1)
 
     async def start_workers(self):
-        """创建多个 worker 共享 queue"""
+        
         self.workers = [asyncio.create_task(self.worker()) for _ in range(self.num_workers)]
 
     async def stop_workers(self):
-        """停止所有 worker"""
+        
         try:
-            await asyncio.wait_for(self.queue.join(), timeout=120)  # 设置队列任务完成的超时
+            await asyncio.wait_for(self.queue.join(), timeout=120)  
         except asyncio.TimeoutError:
             print("Wait for queue task completion timeout to force all tasks to stop", file=sys.stdout)
 
-        # 向队列里放入终止信号
         for _ in range(self.num_workers):
             await self.queue.put(None)
 
-        # 强制取消所有未完成的 worker 任务
         for worker in self.workers:
             if not worker.done():
                 print(f"Cancel unfinished workers: {worker.get_name()}" , file=sys.stdout)
@@ -484,7 +470,7 @@ class LLMQueue:
         self.stop_event.set()
 
         if self.progress_bar:
-            self.progress_bar.close()  # 关闭进度条
+            self.progress_bar.close() 
 
     async def generate(self, index: int, system_prompt: str, user_prompt: str) -> str:
         task_id = f"query_{index}"
@@ -546,7 +532,7 @@ def run_chunk_in_process(chunk_start, chunk_end, user_prompt_lst, system_prompt,
 
 
 async def run_async_llm_tasks(system_prompt, user_prompt_lst, start, end, return_log_prob=False, response_format=None,
-                                batch_size=4, num_workers=4, llm_type="DeepSeek", max_retries=2, timeout=120): # each question time
+                                batch_size=4, num_workers=4, llm_type="DeepSeek", max_retries=2, timeout=120):
 
     chunk_size = 50 if llm_type == "Llama" else end - start
     task_results = {}
@@ -615,111 +601,3 @@ def execute_llm_tasks(system_prompt, user_prompt_lst, start, end,return_log_prob
         loop.close()
 
     return llm_queue
-
-if __name__ == "__main__":
-
-    system_prompt = '''
-    You are a helpful assistant. Your task is to generate structured JSON outputs based on user instructions.
-    
-    Only return a valid JSON object. Do not include any explanation or extra text.
-    Ensure the output can be parsed by Python's json.loads().
-    '''
-
-    user_prompt_lst = ["Please give me any data according to the output format." for i in range(1)]
-
-    # # cluster_format_type
-    # cluster_format_type = {
-    #     "type": "json_schema",
-    #     "json_schema": {
-    #         "name": "paragraph_cluster_evaluation",
-    #         "schema": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "cluster": {
-    #                     "type": "array",
-    #                     "items": {
-    #                         "type": "object",
-    #                         "properties": {
-    #                             "indices": {
-    #                                 "type": "array",
-    #                                 "items": {"type": "integer"}
-    #                             },
-    #                             "description": {"type": "string"},
-    #                             "label": {
-    #                                 "type": "string",
-    #                                 "enum": ["<STRONG>", "<Medium>", "<WEAK>"]
-    #                             }
-    #                         },
-    #                         "required": ["indices", "description", "label"],
-    #                         "additionalProperties": False
-    #                     }
-    #                 }
-    #             },
-    #             "required": ["cluster"],
-    #             "additionalProperties": False
-    #         }
-    #     }
-    # }
-    #
-    # result = execute_llm_tasks(system_prompt, user_prompt_lst, return_log_prob=True, response_format=cluster_format_type, llm_type="DeepSeek") # response_format=cluster_format_type
-
-    result = execute_llm_tasks(system_prompt, user_prompt_lst, return_log_prob=False,
-                               response_format=None,
-                               llm_type="Llama", start=0, end=len(user_prompt_lst))  # response_format=cluster_format_type llm_type="DeepSeek"
-
-    random_value = random.choice(list(result.task_results.values()))
-    print(random_value)
-
-    #
-    # from openai import OpenAI
-    #
-    # # client = OpenAI(api_key= deepseek_api_key, base_url="https://api.deepseek.com")
-    # client = OpenAI(api_key=openai_key)
-    #
-    # start_time = time.time()
-    # response = client.chat.completions.create(
-    #     model="gpt-4o",
-    #     messages=[
-    #         {"role": "system", "content": "You are a helpful assistant"},
-    #         {"role": "user", "content": "Hello"},
-    #     ],
-    #     # stream=False,
-    #     response_format="json"
-    # )
-    # print(response)
-    # print(response.choices[0].message.content)
-    # print(f"Finished in {time.time()-start_time}")
-    #
-
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True,
-    )
-
-    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
-    model = AutoModelForCausalLM.from_pretrained(
-        "meta-llama/Meta-Llama-3-8B",
-        quantization_config = quantization_config,        # 可选：更省显存
-        device_map="auto",                # 自动将模型分配到可用GPU
-    )
-
-    # 3. 构造输入文本
-    prompt = "You are a helpful assistant. Hello!"
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-
-    # 4. 推理
-    start_time = time.time()
-    output = model.generate(
-        **inputs,
-        max_new_tokens=512,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.95
-    )
-
-    # 5. 输出结果
-    print(tokenizer.decode(output[0], skip_special_tokens=True))
-    print(f"Running time: {time.time() - start_time}s")
-

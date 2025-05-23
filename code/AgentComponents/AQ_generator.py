@@ -37,7 +37,6 @@ class OpenAIGPTClient(LLMClient):
         }
         response = await self.engine.chat.completions.create(**request_params)
         elapsed_time = time.time() - start_time
-        # print(f"OpenAI API 请求耗时: {elapsed_time:.2f} 秒")
 
         tokens = {
             "total_token": response.usage.total_tokens,
@@ -73,7 +72,6 @@ class DeepSeekClient(LLMClient):
         }
         response = await self.engine.chat.completions.create(**request_params)
         elapsed_time = time.time() - start_time
-        # print(f"OpenAI API 请求耗时: {elapsed_time:.2f} 秒")
 
         tokens = {
             "total_token": response.usage.total_tokens,
@@ -91,10 +89,10 @@ class LLMQueue:
         self.wait_time = wait_time
         self.queue = asyncio.Queue()
         self.task_results = {}
-        self.stop_event = asyncio.Event()  # 用于标记是否停止 worker
+        self.stop_event = asyncio.Event()  
         self.num_workers = num_workers
-        self.total_tasks = 0  # 记录提交的任务总数
-        self.completed_tasks = 0  # 记录完成的任务数
+        self.total_tasks = 0  
+        self.completed_tasks = 0  
 
         self.total_token = 0
         self.input_token = 0
@@ -106,7 +104,6 @@ class LLMQueue:
             self.progress_bar = None
 
     async def worker(self):
-        """后台 worker，处理任务队列"""
         while not self.stop_event.is_set():
             batch_sys_prompts, batch_user_prompts, tasks = [], [], []
 
@@ -119,7 +116,7 @@ class LLMQueue:
                         break
 
                     if item is None:
-                        print("终止信号收到，退出 worker")
+                        print("terminated，exit worker")
                         self.stop_event.set()
                         return
 
@@ -133,7 +130,7 @@ class LLMQueue:
                         self.queue.task_done()
 
             except asyncio.TimeoutError:
-                pass  # 超时后立即处理当前 batch
+                pass 
 
             if batch_sys_prompts and batch_user_prompts:
                 results = await self.llm_client.batch_generate(batch_sys_prompts, batch_user_prompts)
@@ -146,17 +143,15 @@ class LLMQueue:
                     self.input_token += token_data["input_token"]
                     self.output_token += token_data["output_token"]
 
-                    self.completed_tasks += 1  # 任务完成计数
+                    self.completed_tasks += 1 
 
                     if self.progress_bar:
                         await asyncio.to_thread(self.progress_bar.update, 1)
 
     async def start_workers(self):
-        """创建多个 worker 共享 queue"""
         self.workers = [asyncio.create_task(self.worker()) for _ in range(self.num_workers)]
 
     async def stop_workers(self):
-        """停止所有 worker"""
         self.stop_event.set()
         await self.queue.join()
 
@@ -166,19 +161,17 @@ class LLMQueue:
         await asyncio.gather(*self.workers)
 
         if self.progress_bar:
-            self.progress_bar.close()  # 关闭进度条
+            self.progress_bar.close() 
 
     async def generate(self, index: int, system_prompt: str, user_prompt: str) -> str:
-        """提交任务到队列，并等待结果"""
 
         task_id = f"query_{index}"
         self.queue.put_nowait((system_prompt, user_prompt, task_id))
-        # print(f"🔹 任务提交: {task_id}")
 
-        self.total_tasks += 1  # 记录任务总数
+        self.total_tasks += 1  
 
         if self.progress_bar:
-            self.progress_bar.total = self.total_tasks  # 更新进度条的总数
+            self.progress_bar.total = self.total_tasks 
             self.progress_bar.refresh()
 
         while task_id not in self.task_results:

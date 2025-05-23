@@ -32,8 +32,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Argument parser for dataset processing.")
     parser.add_argument("--dataset_name", type=str, default="techQA", help="Name of the dataset")
     parser.add_argument("--testing_mode", type=bool, default=False, help="Enable or disable testing mode")
-    parser.add_argument("--model_name", type=str, default="BAAI/bge-m3", help="Choose baseline model")
-    parser.add_argument("--exp_name", type = str, default='main', help = 'The name of experiments')
+    parser.add_argument("--model_name", type=str, default="sentence-transformers/distilbert-base-nli-stsb-mean-tokens", help="Choose baseline model")
+    parser.add_argument("--exp_name", type = str, default='with_cluster', help = 'The name of experiments')
     parser.add_argument("--llm_type", type=str, default = 'DeepSeek', help = 'The name of LLM used'  )
     args = parser.parse_args()
     return args
@@ -43,7 +43,6 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
     # Argparser Part
     dataset_name = dataset_name
     testing_mode = testing_mode
-    # set_seed(42)
 
     print(f"dataset_name: {dataset_name}")
     print(f"testing_mode: {testing_mode}")
@@ -615,7 +614,5 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 if __name__ == '__main__':
     args = parse_arguments()
     run_pipeline(dataset_name = args.dataset_name, testing_mode = args.testing_mode, model_name=args.model_name, exp_name=args.exp_name, llm_type=args.llm_type)
-    # model_name = "sentence-transformers/distilbert-base-nli-stsb-mean-tokens"
-    # run_pipeline(dataset_name = "pubmedQA", testing_mode = False, model_name=model_name, exp_name="with_cluster", llm_type="Llama")
 
     print("Finished!")

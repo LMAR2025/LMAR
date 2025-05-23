@@ -32,7 +32,6 @@ def run_eval_pipeline(dataset_name, model_type = 'Base', model_save_path=None, m
 
     # Mannully Setting Part
     dataset_path = library_path.joinpath(dataset_name)
-    # model_save_path = library_path.joinpath(f'{dataset_name}/embedding_model/{model_name}_{exp_name}/')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create a local embedding model template
@@ -53,8 +52,6 @@ def run_eval_pipeline(dataset_name, model_type = 'Base', model_save_path=None, m
     if model_type == "Training":
         print("Using Training Model")
         model = training_model
-    
-    # print_gpu_memory("Model Loaded:")
 
 
     if dataset_path.joinpath(f"Corpus_all.txt").exists() and dataset_path.joinpath(f"Queries_all.json").exists():
@@ -107,7 +104,6 @@ def run_eval_pipeline(dataset_name, model_type = 'Base', model_save_path=None, m
                 # MRR
                 mrr_scores.append(calculate_mrr(retrieved_paragraphs_lst, evidence_list[i]))
 
-            # 计算指标
             mrr_pct = np.percentile(mrr_scores, q=[2.5, 50, 97.5])
             TFScore_pct = np.percentile(TFScore, q=[2.5, 50, 97.5])
             accuracy_pct = np.mean(Corrects)
@@ -184,10 +180,5 @@ def run_eval_pipeline(dataset_name, model_type = 'Base', model_save_path=None, m
 
 if __name__ == '__main__':
     args = parse_arguments()
-    # model_name = "Linq-AI-Research/Linq-Embed-Mistral"
-    # model_name = "sentence-transformers/distilbert-base-nli-stsb-mean-tokens" # √
-    # model_name = "BAAI/bge-m3" # √
-    # eval_df = run_eval_pipeline(dataset_name="techQA", model_type="Base", model_name=model_name, training_model=None, training_epoch=None, exp_name='base', max_len=1500)
     eval_df = run_eval_pipeline(dataset_name=args.dataset_name, model_type=args.model_type, model_name=args.model_name,training_model=None, training_epoch=None, exp_name='base', max_len=args.max_length)
-    # print(eval_df[["top_k", "Accuracy", "MRR_mean", 'Average Similarity']])
     print("Finished")

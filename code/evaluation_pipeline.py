@@ -22,6 +22,7 @@ def parse_arguments():
     parser.add_argument("--model_type", type=str, default="Base", help="Choose to run on trained or baseline model")
     parser.add_argument("--model_name", type=str, default="Linq-AI-Research/Linq-Embed-Mistral", help="Choose baseline model")
     parser.add_argument("--exp_name", type = str, default='no_cluster_update', help = 'The name of experiments')
+    parser.add_argument("--max_length", type = int, default=512, help="The max length for tokenizer")
     
     args = parser.parse_args()
     return args
@@ -44,14 +45,16 @@ def run_eval_pipeline(dataset_name, model_type = 'Base', model_save_path=None, m
         model = AutoModel.from_pretrained(model_save_path, trust_remote_code=True).to(device)
         print("Local Model Loaded")
     if model_type == "Base":
-        model = AutoModel.from_pretrained(model_name, quantization_config = BitsAndBytesConfig(load_in_8bit=True), device_map = 'auto')
-        # model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(device)
+        try:
+            model = AutoModel.from_pretrained(model_name, quantization_config = BitsAndBytesConfig(load_in_8bit=True), device_map = 'auto')
+        except ValueError as e:
+            model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(device)
         print("Using Base Model")
     if model_type == "Training":
         print("Using Training Model")
         model = training_model
     
-    print_gpu_memory("Model Loaded:")
+    # print_gpu_memory("Model Loaded:")
 
 
     if dataset_path.joinpath(f"Corpus_all.txt").exists() and dataset_path.joinpath(f"Queries_all.json").exists():
@@ -185,6 +188,6 @@ if __name__ == '__main__':
     # model_name = "sentence-transformers/distilbert-base-nli-stsb-mean-tokens" # √
     # model_name = "BAAI/bge-m3" # √
     # eval_df = run_eval_pipeline(dataset_name="techQA", model_type="Base", model_name=model_name, training_model=None, training_epoch=None, exp_name='base', max_len=1500)
-    eval_df = run_eval_pipeline(dataset_name=args.dataset_name, model_type=args.model_type, model_name=args.model_name,training_model=None, training_epoch=None, exp_name='base', max_len=512)
-    print(eval_df[["top_k", "Accuracy", "MRR_mean", 'Average Similarity']])
+    eval_df = run_eval_pipeline(dataset_name=args.dataset_name, model_type=args.model_type, model_name=args.model_name,training_model=None, training_epoch=None, exp_name='base', max_len=args.max_length)
+    # print(eval_df[["top_k", "Accuracy", "MRR_mean", 'Average Similarity']])
     print("Finished")

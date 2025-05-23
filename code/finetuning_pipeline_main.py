@@ -272,7 +272,7 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 
         if avg_loss < best_loss:
             best_loss = avg_loss
-            cluster_model.save_pretrained(cluster_save_path)  # 你需要定义 cluster_save_path
+            cluster_model.save_pretrained(cluster_save_path)
             print(f"Saved new best model at {cluster_save_path} with Loss = {avg_loss:.4f}")
 
         early_stopping(avg_loss)
@@ -284,7 +284,7 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
     print("Finish Training Clustering!!")
 
     eval_df = run_eval_pipeline(dataset_name=dataset_name, model_type="Trained", model_save_path=cluster_save_path, model_name=model_name, training_epoch=epoch,
-                                     llm_type=llm_type, exp_name="cluster", max_len=max_len, lr=cluster_lr, save=True, top_k_list = [2,3,4,5])
+                                     llm_type=llm_type, exp_name="cluster", max_len=max_len, lr=cluster_lr, save=True, top_k_list = [5,10,15,20])
 
     print("Cluster Evaluation")
     print(eval_df[["top_k", "Accuracy", "MRR_mean", 'Average Similarity']])
@@ -385,11 +385,11 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 
     if testing_mode:
         results = execute_llm_tasks(system_prompt_cluster_eval, user_prompt_cluster_eval_lst[:100], return_log_prob=False,
-                                            response_format=cluster_eval_format_type, batch_size=1, num_workers=1,
+                                            response_format=cluster_eval_format_type, batch_size=4, num_workers=4,
                                             llm_type=llm_type, start = 0, end = len(user_prompt_cluster_eval_lst))
     else:
         results = execute_llm_tasks(system_prompt_cluster_eval, user_prompt_cluster_eval_lst, return_log_prob=False,
-                                            response_format=cluster_eval_format_type, batch_size=1, num_workers=1,
+                                            response_format=cluster_eval_format_type, batch_size=4, num_workers=4,
                                             llm_type=llm_type, start = 0, end = len(user_prompt_cluster_eval_lst))
 
     usage_dict = {"total_token":results.total_token, "input_token":results.input_token, "output_token":results.output_token}
@@ -413,9 +413,9 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 
     save_json(all_cluster_evaluation,dataset_path.joinpath(f'{dataset_name}_{llm_type}_cluster_LLM_eval.json'))
 
-    # ##########################################################################################################################
-    # # Generate S-Q Pair
-    # ##########################################################################################################################
+    ##########################################################################################################################
+    # Generate S-Q Pair
+    ##########################################################################################################################
     print('Generate S-Q pairs.')
     cluster_res = load_json(dataset_path.joinpath(f"{dataset_name}_{llm_type}_cluster_LLM_eval.json"))
     cluster_list = [' \n\n '.join(corpus_list[j] for j in item['indices'] if j <= len(corpus_list)) for i, item in enumerate(cluster_res)]
@@ -498,7 +498,7 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
     train_df, test_df = train_test_split(question_df, test_size=0.5, shuffle=True)
 
     # all_dataset = create_dataset(question_df, tokenizer, max_len=max_len)
-    train_dataset = create_dataset(train_df, tokenizer, max_len=max_len, VS=None, use_vs_negatives=False)
+    train_dataset = create_dataset(train_df, tokenizer, max_len=max_len)
     print(f"Length of all dataset: {len(train_dataset)}")
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
@@ -575,11 +575,23 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 
         model.eval()
 
-        eval_df = run_eval_pipeline(dataset_name=dataset_name, model_type="Trained", model_save_path=save_path,
-                                    model_name=model_name, training_epoch=epoch, llm_type=llm_type,
-                                    exp_name=exp_name, max_len=max_len, lr=qa_lr, save=False, top_k_list=[test_topk])
+        # eval_df = run_eval_pipeline(dataset_name=dataset_name, model_type="Training", training_model=model,
+        #                             model_name=model_name, training_epoch=epoch, llm_type=llm_type,
+        #                             exp_name=exp_name, max_len=max_len, lr=qa_lr, save=False, top_k_list=[test_topk])
 
-        mrr_score = eval_df["MRR_mean"][0]
+        mrr_scores = []
+        with torch.no_grad():
+            VS = VectorStore(model=model, tokenizer=tokenizer, train=True, device=device,
+                             max_length=max_len)  # Set to training model without saving the results locally
+            VS.load_new_text(texts)
+            VS.embed_library(batch_size=10)
+
+            for i in tqdm(range(len(test_question_list)), desc=f"Testing Top-{test_topk}"):
+                retrieved_paragraphs_lst = VS.retrieve(query=test_question_list[i], top_k=test_topk)[1]
+                mrr_scores.append(calculate_mrr(retrieved_paragraphs_lst, test_evidence_list[i]))
+
+        mrr_score = np.mean(mrr_scores)
+
 
         print(f"MRR_mean for Epoch {epoch+1}: {mrr_score}")
 
@@ -595,7 +607,7 @@ def run_pipeline(dataset_name, testing_mode = False, model_name="BAAI/bge-m3", e
 
     print('Start Evaluation')
     eval_df = run_eval_pipeline(dataset_name=dataset_name, model_type="Trained", model_save_path=save_path, model_name=model_name, training_epoch=epoch,
-                                     llm_type=llm_type, exp_name=exp_name, max_len=max_len, lr=qa_lr, top_k_list = [2,3,4,5])
+                                     llm_type=llm_type, exp_name=exp_name, max_len=max_len, lr=qa_lr, top_k_list = [5,10,15,20])
 
     print("All Evaluation")
     print(eval_df[["top_k", "Accuracy", "MRR_mean", 'Average Similarity']])

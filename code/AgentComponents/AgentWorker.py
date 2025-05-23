@@ -6,10 +6,6 @@ from packages import *
 from utils import mean_pooling
 from utils import access_token, openai_key, deepseek_api_key
 
-# from AgentComponents.VectorStore import VectorStore
-# from AgentComponents.QuestionClassifier import GPTQuestionClassifier
-# from AgentComponents.LLMSetting.llama3Setting8B import llm_pipeline
-
 class AgentWorker:
     def __init__(self, llm_pipeline = None, role = None):
         # Add asssertation check for type of llm and retriever

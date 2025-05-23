@@ -22,7 +22,7 @@ class VectorStore:
         # Set model config
         # access_token = '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'
         # self.model_dim = 1024
-        self.model_dim = 768
+        # self.model_dim = 768
         # self.model_dim = 4096
         
         if model:
@@ -33,6 +33,15 @@ class VectorStore:
             assert os.path.exists(best_model_path) and os.path.isdir(best_model_path), "There is no default model."
             
             self.model = AutoModel.from_pretrained(best_model_path)
+
+        try:
+            self.model_dim = self.model.config.hidden_size
+        except AttributeError:
+            try:
+                self.model_dim = self.model.config.dim
+            except AttributeError:
+                raise ValueError("Unable to recognize hidden size from model config, please set model_dim in VectorStore manually.")
+
 
         if self.model.device.type != 'cuda':
             self.model = self.model.to(self.device)

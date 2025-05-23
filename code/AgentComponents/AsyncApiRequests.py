@@ -573,9 +573,8 @@ async def run_async_llm_tasks(system_prompt, user_prompt_lst, start, end, return
             )
         )
         p.start()
-        p.join()  # 等待子进程结束
+        p.join()
 
-        # 子进程退出后内存自动释放
         print(f"[RAM] {psutil.Process().memory_info().rss / 1024 ** 3:.2f} GB")
         print(f"[CUDA] {torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB")
 
@@ -592,120 +591,6 @@ async def run_async_llm_tasks(system_prompt, user_prompt_lst, start, end, return
 
     return final_llm_queue
 
-    #
-    #
-    # task_results = {}
-    # total_token, input_token, output_token = 0, 0, 0
-    # print(f"Total Task Number: {end-start+1}")
-    #
-    # for chunk_start in range(start, end, chunk_size):
-    #
-    #     if chunk_start < 100:
-    #         continue
-    #
-    #     print(f"[RAM] {psutil.Process().memory_info().rss / 1024 ** 3:.2f} GB")
-    #     print(f"[CUDA] {torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB")
-    #
-    #     chunk_end = min(chunk_start + chunk_size, end)
-    #     print(f"\n Running chunk from {chunk_start} to {chunk_end}...")
-    #
-    #     llm_client = create_llm_client()
-    #     llm_queue = LLMQueue(llm_client, batch_size=batch_size, num_workers=num_workers, progress_bar=True)
-    #
-    #     await llm_queue.start_workers()
-    #
-    #     tasks = [llm_queue.generate(global_index, system_prompt, user_prompt_lst[global_index])
-    #              for global_index in range(chunk_start, chunk_end)]
-    #     responses = await asyncio.gather(*tasks, return_exceptions=True)
-    #
-    #     retry_count = 0
-    #     while retry_count < max_retries:
-    #         retry_tasks = []
-    #         for i, user_prompt in enumerate(user_prompt_lst[chunk_start:chunk_end]):
-    #             global_index = chunk_start + i
-    #             task_result = llm_queue.task_results.get(f"query_{global_index}", {})
-    #             if task_result.get("response", "") == "":
-    #                 print(f" Response from task {global_index} is null, retrying... ({retry_count + 1} times)")
-    #                 retry_tasks.append(llm_queue.generate(global_index, system_prompt, user_prompt))
-    #
-    #         if not retry_tasks:
-    #             break
-    #
-    #         await asyncio.gather(*retry_tasks, return_exceptions=True)
-    #         retry_count += 1
-    #
-    #     await llm_queue.stop_workers()
-    #
-    #     # Aggregate results
-    #     task_results.update(llm_queue.task_results)
-    #     total_token += llm_queue.total_token
-    #     input_token += llm_queue.input_token
-    #     output_token += llm_queue.output_token
-    #
-    #     print(f"[RAM] {psutil.Process().memory_info().rss / 1024 ** 3:.2f} GB")
-    #     print(f"[CUDA] {torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB")
-    #
-    #     if llm_type == "Llama":
-    #         await asyncio.sleep(0.1)
-    #
-    #         if hasattr(llm_client, "quantization_config"):
-    #             del llm_client.quantization_config
-    #
-    #         if hasattr(llm_client, "prefix_allowed_tokens_fn"):
-    #             del llm_client.prefix_allowed_tokens_fn
-    #
-    #         del llm_client.model, llm_client.tokenizer
-    #         del llm_client, llm_queue
-    #
-    #         for obj in gc.get_objects():
-    #             if torch.is_tensor(obj) and obj.is_cuda:
-    #                 del obj
-    #
-    #         gc.collect()
-    #         torch.cuda.empty_cache()
-    #
-    #
-    #     print(f"[RAM] {psutil.Process().memory_info().rss / 1024 ** 3:.2f} GB")
-    #     print(f"[CUDA] {torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB")
-    #
-    # final_llm_queue = DummyLLMQueue()
-    # final_llm_queue.task_results = task_results
-    # final_llm_queue.total_token = total_token
-    # final_llm_queue.input_token = input_token
-    # final_llm_queue.output_token = output_token
-    #
-    # return final_llm_queue
-
-    # llm_queue = LLMQueue(llm_client, batch_size=batch_size, num_workers=num_workers, progress_bar=True)
-    #
-    # await llm_queue.start_workers()
-    #
-    # # tasks = [llm_queue.generate(i, "You are a bot. Output format is json", f"Please give me any data according to the output format.") for i in range(50)]
-    # # tasks = [llm_queue.generate(i, system_prompt, user_prompt_lst[i]) for i in range(len(user_prompt_lst))]
-    # tasks = [llm_queue.generate(global_index, system_prompt, user_prompt_lst[global_index])
-    #          for global_index in range(start, end)]
-    #
-    # responses = await asyncio.gather(*tasks, return_exceptions=True)
-    #
-    # retry_count = 0
-    # while retry_count < max_retries:
-    #     retry_tasks = []
-    #     for i, user_prompt in enumerate(user_prompt_lst[start:end]):
-    #         global_index = start + i
-    #         task_result = llm_queue.task_results.get(f"query_{global_index}", {})
-    #         if task_result.get("response", "") == "":
-    #             print(f" Response from task {global_index} is null, retrying... ({retry_count + 1} times)")
-    #             retry_tasks.append(llm_queue.generate(global_index, system_prompt, user_prompt))
-    #
-    #     if not retry_tasks:
-    #         break
-    #
-    #     await asyncio.gather(*retry_tasks, return_exceptions=True)
-    #     retry_count += 1
-    #
-    # await llm_queue.stop_workers()
-    #
-    # return llm_queue
 
 def execute_llm_tasks(system_prompt, user_prompt_lst, start, end,return_log_prob=False, response_format=None,
                                 batch_size=1, num_workers=1, llm_type="DeepSeek"):
@@ -732,15 +617,7 @@ def execute_llm_tasks(system_prompt, user_prompt_lst, start, end,return_log_prob
     return llm_queue
 
 if __name__ == "__main__":
-    # system_prompt = '''
-    #     You are a bot. And you need to fill the format in any data.
-    #
-    #     EXAMPLE JSON OUTPUT:
-    #     {
-    #         "clusters": [{"indices": [list of paragraph numbers], "description": short description, "label": "<STRONG>"}, {"indices": [list of paragraph numbers], "description": short description, "label": "<Medium>"}]
-    #     }
-    #
-    # '''
+
     system_prompt = '''
     You are a helpful assistant. Your task is to generate structured JSON outputs based on user instructions.
     

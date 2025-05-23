@@ -7,7 +7,7 @@ from utils import split_and_filter_paragraph
 
 from sentence_transformers import SentenceTransformer, InputExample, losses, models, datasets
 from torch.utils.data import DataLoader, Dataset
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
 
 
 from AgentComponents.VectorStore import VectorStore
@@ -57,12 +57,12 @@ def split_batch(batch_data):
     return batch_question, batch_context
 
 def tfidf_overlap_similarity(text_a, text_b):
-    TFvectorizer = TfidfVectorizer()
+    TFvectorizer = CountVectorizer()
     tfidf_matrix = TFvectorizer.fit_transform([text_a, text_b])
     tfidf_a = tfidf_matrix[0].toarray()
     tfidf_b = tfidf_matrix[1].toarray()
 
-    matching_score = (tfidf_a * tfidf_b).sum() / tfidf_a.sum() if tfidf_a.sum() else 0
+    matching_score = (tfidf_a * tfidf_b).sum() / tfidf_b.sum() if tfidf_b.sum() else 0
     return matching_score
 
 
